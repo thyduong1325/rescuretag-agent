@@ -1,0 +1,81 @@
+{
+  "patients": {
+    "tag_asthma_001": {
+      "tagId": "tag_asthma_001",
+      "secureLink": "https://rescuretag.net/s/asthma_001?nonce=xyz123",
+      "publicTier": {
+        "conditionBadge": "Severe Asthma",
+        "emergencyContact": "Mother: (555) 019-2834 (English/Spanish)",
+        "criticalAllergies": ["Aspirin"],
+        "firstAidSteps": [
+          "Locate rescue inhaler (Albuterol) in backpack front pocket.",
+          "Assist patient in sitting upright and taking 2 puffs.",
+          "Call 911 if breathing doesn't improve within 5 minutes."
+        ],
+        "aslTiles": ["help", "inhaler", "breathe"]
+      },
+      "secureTier": {
+        "fullName": "Ethan Carter",
+        "dob": "2005-04-12",
+        "mrn": "MRN-882910-A",
+        "activeMedications": [
+          { "name": "Albuterol HFA", "dose": "90mcg", "frequency": "as needed" },
+          { "name": "Flovent Diskus", "dose": "100mcg", "frequency": "twice daily" }
+        ],
+        "clinicalNotes": "Rising senior CS student. History of exercise-induced bronchospasms. High sensitivity to cold air and dust. Last hospitalized for asthma in 2024.",
+        "recentLabs": { "spirometry": "FEV1 78% predicted on 2026-05-10" }
+      }
+    },
+    "tag_stroke_002": {
+      "tagId": "tag_stroke_002",
+      "secureLink": "https://rescuretag.net/s/stroke_002?nonce=abc456",
+      "publicTier": {
+        "conditionBadge": "Deaf / Prior Stroke History",
+        "emergencyContact": "Spouse: (555) 014-9988 (Text Only)",
+        "criticalAllergies": ["Penicillin"],
+        "firstAidSteps": [
+          "Patient is DEAF. Please use clear gestures or write notes on paper/phone.",
+          "Check for FAST stroke signs (Face drooping, Arm weakness, Speech difficulty).",
+          "If signs are present, write '911' on a paper and call immediately."
+        ],
+        "aslTiles": ["deaf", "pain", "hospital"]
+      },
+      "secureTier": {
+        "fullName": "Robert Cooper",
+        "dob": "1954-11-23",
+        "mrn": "MRN-334512-S",
+        "activeMedications": [
+          { "name": "Apixaban (Eliquis)", "dose": "5mg", "frequency": "twice daily" },
+          { "name": "Atorvastatin", "dose": "40mg", "frequency": "once daily at night" }
+        ],
+        "clinicalNotes": "History of ischemic stroke (2023). Uses American Sign Language (ASL) as primary communication. Left-sided mild residual weakness. Requires interpreter for medical consent.",
+        "recentLabs": { "INR": "2.1 on 2026-06-20" }
+      }
+    },
+    "tag_bleeding_003": {
+      "tagId": "tag_bleeding_003",
+      "secureLink": "https://rescuretag.net/s/bleeding_003?nonce=uvw789",
+      "publicTier": {
+        "conditionBadge": "Hemophilia A (Severe)",
+        "emergencyContact": "Hematology Clinic: (555) 887-2190",
+        "criticalAllergies": ["NSAIDs (Advil, Motrin)"],
+        "firstAidSteps": [
+          "Apply firm, continuous pressure to any bleeding site for at least 15 minutes.",
+          "DO NOT give aspirin or ibuprofen (causes increased bleeding).",
+          "Patient has factor VIII infusion kit in outdoor pack; assist if trained."
+        ],
+        "aslTiles": ["help", "pain", "doctor"]
+      },
+      "secureTier": {
+        "fullName": "John R. Doe",
+        "dob": "1992-08-30",
+        "mrn": "MRN-902148-H",
+        "activeMedications": [
+          { "name": "Factor VIII (Advate)", "dose": "2000 Units", "frequency": "prophylaxis 3x weekly" }
+        ],
+        "clinicalNotes": "Severe Hemophilia A. High risk of intracranial or joint bleeding after falls. Carry factor infusion instructions. Joint target is right knee.",
+        "recentLabs": { "Factor VIII Activity": "1.5% on 2026-05-18" }
+      }
+    }
+  }
+}
