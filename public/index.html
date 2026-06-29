@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RescureTag™ | Multi-Agent Security & Emergency Simulator</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background Gradients -->
+  <div class="bg-gradient bg-grad-1"></div>
+  <div class="bg-gradient bg-grad-2"></div>
+
+  <div class="app-container">
+    
+    <!-- 1. LEFT PANEL: SIMULATOR CONTROL CENTRE -->
+    <aside class="control-panel glass-card">
+      <div class="panel-header">
+        <div class="brand-logo">
+          <span class="logo-icon">🛡️</span>
+          <h1 class="gradient-text font-outfit">RescureTag</h1>
+        </div>
+        <p class="subtitle">Hackathon Interactive Sandbox</p>
+      </div>
+
+      <div class="control-section">
+        <h2 class="section-title font-outfit">1. Select Patient Scenario</h2>
+        <p class="section-desc">Simulate scanning a physical QR code printed inside a garment's wrist cuff.</p>
+        
+        <div class="scenarios-list">
+          <div class="scenario-card active" onclick="selectScenario('tag_asthma_001', 'xyz123')" id="scen-tag_asthma_001">
+            <div class="scenario-emoji">🎒</div>
+            <div class="scenario-info">
+              <h3>Ethan Carter</h3>
+              <p>Asthma (CS Student / F-1)</p>
+            </div>
+            <span class="scan-pill">Asthma Tag</span>
+          </div>
+
+          <div class="scenario-card" onclick="selectScenario('tag_stroke_002', 'abc456')" id="scen-tag_stroke_002">
+            <div class="scenario-emoji">🦻</div>
+            <div class="scenario-info">
+              <h3>Robert Cooper</h3>
+              <p>Deaf / Stroke History (Immigrant)</p>
+            </div>
+            <span class="scan-pill">Deaf Tag</span>
+          </div>
+
+          <div class="scenario-card" onclick="selectScenario('tag_bleeding_003', 'uvw789')" id="scen-tag_bleeding_003">
+            <div class="scenario-emoji">🧗</div>
+            <div class="scenario-info">
+              <h3>John R. Doe</h3>
+              <p>Hemophilia A (Outdoor Adventurer)</p>
+            </div>
+            <span class="scan-pill">Hemophilia Tag</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h2 class="section-title font-outfit">2. Clinician Identity Gate</h2>
+        <p class="section-desc">Toggle the Mock SSO clinician key to test Tier 2 access controls.</p>
+        <div class="toggle-container">
+          <label class="switch">
+            <input type="checkbox" id="clinician-auth-toggle" onchange="toggleAuth()">
+            <span class="slider round"></span>
+          </label>
+          <span class="toggle-label font-outfit" id="auth-status-text">Clinician Offline</span>
+        </div>
+        <div class="sso-badge" id="sso-badge-display">
+          🔑 Mock Token: <span class="badge-code">NONE</span>
+        </div>
+      </div>
+
+      <div class="control-section reset-section">
+        <button class="btn btn-secondary font-outfit" onclick="resetSimulator()">Reset Simulator State</button>
+      </div>
+
+      <div class="tech-badges">
+        <span class="tech-tag">ADK Multi-Agent</span>
+        <span class="tech-tag">Custom EMR MCP</span>
+        <span class="tech-tag">PII Scrubbing</span>
+        <span class="tech-tag">Signed Links</span>
+      </div>
+    </aside>
+
+    <!-- 2. CENTER PANEL: VIRTUAL SMARTPHONE SIMULATOR -->
+    <main class="phone-wrapper">
+      <div class="phone-frame glass-card">
+        <!-- Phone Notch / Status Bar -->
+        <div class="phone-status-bar">
+          <span class="phone-time font-outfit">9:41</span>
+          <div class="phone-camera"></div>
+          <div class="phone-indicators">🔋 📶 📶</div>
+        </div>
+
+        <!-- Dynamic Screen Content -->
+        <div class="phone-screen" id="phone-screen-content">
+          
+          <!-- SCREEN A: WAITING FOR SCAN -->
+          <div class="screen-state" id="screen-waiting">
+            <div class="qr-scanner-overlay">
+              <div class="scanner-line"></div>
+              <div class="mock-qr">
+                <div class="qr-square qr-tl"></div>
+                <div class="qr-square qr-tr"></div>
+                <div class="qr-square qr-bl"></div>
+                <div class="qr-logo">🛡️</div>
+              </div>
+            </div>
+            <h2 class="font-outfit text-center">Ready to Scan</h2>
+            <p class="text-muted text-center">Tap a cuff scenario card on the left to simulate scanning an inside-wrist QR label.</p>
+            <button class="btn btn-primary btn-pulse font-outfit" onclick="simulateScan()">Scan Tag Now</button>
+          </div>
+
+          <!-- SCREEN B: TIER 1 - PUBLIC EMERGENCY VIEW -->
+          <div class="screen-state hidden" id="screen-tier1">
+            <div class="phone-header">
+              <div class="header-badge warning-glow">⚠️ PUBLIC EMERGENCY VIEW</div>
+              <span class="tag-badge font-outfit" id="t1-tag-id">TAG-001</span>
+            </div>
+
+            <div class="patient-headline">
+              <div class="status-circle pulse-red"></div>
+              <h2 class="font-outfit" id="t1-condition-badge">Loading...</h2>
+            </div>
+
+            <!-- Primary Medical Directives -->
+            <div class="info-section">
+              <div class="info-label font-outfit">🚨 Immediate First Aid Action</div>
+              <ul class="first-aid-list" id="t1-first-aid-list">
+                <!-- Populated dynamically -->
+              </ul>
+            </div>
+
+            <!-- ASL Phrases Interactive Tiles -->
+            <div class="info-section">
+              <div class="info-label font-outfit">🦻 Quick ASL Communication Tiles</div>
+              <div class="asl-tiles-grid" id="t1-asl-grid">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <!-- Emergency Contact Link -->
+            <div class="info-section">
+              <div class="info-label font-outfit">📞 Emergency Contacts</div>
+              <div class="contact-card">
+                <span class="contact-icon">📱</span>
+                <span class="contact-number font-outfit" id="t1-contact">Loading...</span>
+              </div>
+            </div>
+
+            <!-- Secure Access Drawer Trigger -->
+            <div class="secure-gate-drawer">
+              <div class="drawer-handle"></div>
+              <h3 class="font-outfit">Access Secure Medical Records</h3>
+              <p>Requires clinician SSO credential or patient biometric authorization.</p>
+              <button class="btn btn-primary font-outfit" onclick="attemptSecureUnlock()">
+                🔓 Request Secure Unlock
+              </button>
+            </div>
+          </div>
+
+          <!-- SCREEN C: MOCK FACEID SCANNING -->
+          <div class="screen-state hidden" id="screen-faceid">
+            <div class="faceid-container">
+              <div class="faceid-glowing-ring">
+                <div class="faceid-scanner"></div>
+                <span class="faceid-emoji">👤</span>
+                <div class="faceid-grid-line"></div>
+              </div>
+              <h2 class="font-outfit text-center">Verifying Clinician ID</h2>
+              <p class="text-muted text-center" id="faceid-status">Verifying secure token signature...</p>
+            </div>
+          </div>
+
+          <!-- SCREEN D: TIER 2 - SECURE CLINICIAN VIEW & AGENT CHAT -->
+          <div class="screen-state hidden" id="screen-tier2">
+            <div class="phone-header">
+              <div class="header-badge secure-glow">🛡️ SECURE EMR GATEWAY</div>
+              <button class="btn-logout" onclick="lockSecureView()">Lock</button>
+            </div>
+
+            <!-- Patient Core Information -->
+            <div class="patient-secure-header">
+              <div class="secure-avatar">🏥</div>
+              <div class="secure-meta">
+                <h2 class="font-outfit" id="t2-patient-name">Loading...</h2>
+                <p>DOB: <span id="t2-patient-dob">Loading...</span> | MRN: <span id="t2-patient-mrn" class="mrn-badge font-outfit">Loading...</span></p>
+              </div>
+            </div>
+
+            <!-- Medical Details Accordion -->
+            <div class="secure-scrollable-content">
+              <div class="info-section">
+                <div class="info-label font-outfit">💊 Active Medications (EMR Sync)</div>
+                <div class="medications-list" id="t2-med-list">
+                  <!-- Populated dynamically -->
+                </div>
+              </div>
+
+              <div class="info-section">
+                <div class="info-label font-outfit">📋 Clinical Admission History</div>
+                <div class="clinical-note-box font-outfit" id="t2-notes">
+                  Loading...
+                </div>
+              </div>
+              
+              <!-- INTERACTIVE CLINICAL AGENT CHAT -->
+              <div class="clinical-agent-chat">
+                <div class="chat-header">
+                  <span class="chat-agent-icon">🤖</span>
+                  <div class="chat-agent-info">
+                    <h4 class="font-outfit">EMR Decision Support Agent</h4>
+                    <p>Powered by Gemini 2.5 & EMR MCP</p>
+                  </div>
+                </div>
+                <div class="chat-messages" id="chat-messages-box">
+                  <div class="msg msg-agent">
+                    Hello. I am the EMR clinical agent. You can ask me to perform drug-interaction checks, review recent lab data, or generate case summaries.
+                  </div>
+                </div>
+                <div class="chat-input-wrapper">
+                  <input type="text" id="chat-input-field" placeholder="Ask agent (e.g. check Aspirin safety)..." onkeydown="handleChatKey(event)">
+                  <button class="chat-send-btn" onclick="sendChatMessage()">➔</button>
+                </div>
+                <div class="chat-suggestions">
+                  <span class="suggestion-tag" onclick="useSuggestion('Check if Aspirin is safe to give')">Check Aspirin</span>
+                  <span class="suggestion-tag" onclick="useSuggestion('Summarize medical history')">Summarize history</span>
+                  <span class="suggestion-tag" onclick="useSuggestion('List active meds')">List meds</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        
+        <!-- Phone Home indicator -->
+        <div class="phone-home-indicator" onclick="resetSimulator()"></div>
+      </div>
+    </main>
+
+    <!-- 3. RIGHT PANEL: AGENT DEBUGGER & SECURITY CONSOLE -->
+    <section class="debugger-console glass-card">
+      <div class="panel-header">
+        <h2 class="gradient-text font-outfit">Agent Debugger Console</h2>
+        <p class="subtitle">Live background telemetry & security logs</p>
+      </div>
+      
+      <div class="console-wrapper">
+        <div class="console-actions">
+          <span class="console-dot dot-red"></span>
+          <span class="console-dot dot-yellow"></span>
+          <span class="console-dot dot-green"></span>
+          <span class="console-title font-outfit">mcp-server-stream-log</span>
+          <button class="btn-clear-console" onclick="clearConsole()">Clear</button>
+        </div>
+        <div class="console-body" id="console-logs-container">
+          <div class="console-line system-line">[SYSTEM] RescureTag sandbox initialized. Ready for scan event.</div>
+          <div class="console-line system-line">[SYSTEM] Express router listening at port 3000.</div>
+        </div>
+      </div>
+      
+      <div class="debug-guide">
+        <h3 class="font-outfit">💡 Evaluation Checklist</h3>
+        <ul class="guide-checklist">
+          <li><strong>Agent / Multi-Agent:</strong> The EMR Syncer Agent uses EMR details + optional drug check MCP tools to formulate advice.</li>
+          <li><strong>Custom MCP Server:</strong> Standard JSON-RPC server handles EMR queries and drug interactions safely.</li>
+          <li><strong>Security Features:</strong> The chat logs show <em>PII Redaction</em> scrub names from external API prompts, restoring them locally.</li>
+        </ul>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ASL SIGN VISUALIZER POPUP MODAL -->
+  <div id="asl-modal" class="asl-modal hidden" onclick="closeAslModalOnOutsideClick(event)">
+    <div class="asl-modal-content glass-card">
+      <span class="asl-close" onclick="closeAslModal()">&times;</span>
+      <h3 id="asl-modal-title" class="font-outfit">ASL Sign Guide</h3>
+      <div class="asl-modal-body">
+        <div class="asl-sign-graphic-container">
+          <div class="asl-sign-svg" id="asl-sign-graphic">
+            <!-- Dynamically populated SVG path -->
+          </div>
+          <div class="asl-sign-pulse-ring"></div>
+        </div>
+        <p id="asl-modal-desc" class="text-center text-muted">Sign description will go here.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
