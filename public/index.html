@@ -9,8 +9,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <!-- jsQR library for browser-based QR scanning using webcam -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 </head>
 <body>
+
+  <!-- Floating Focus Toggle -->
+  <button class="focus-toggle-btn font-outfit" onclick="toggleFocusMode()" id="focus-toggle">
+    📱 Focus Phone Mode
+  </button>
 
   <!-- Background Gradients -->
   <div class="bg-gradient bg-grad-1"></div>
@@ -99,23 +106,46 @@
           <div class="phone-indicators">🔋 📶 📶</div>
         </div>
 
+        <!-- Floating Agent Thoughts Toggle (Inside Phone UI) -->
+        <button class="phone-agent-toggle-btn" onclick="togglePhoneAgentOverlay()" id="phone-agent-toggle">
+          🤖
+          <span class="pulse-ring-agent"></span>
+        </button>
+
+        <!-- Agent Mind Reasoning Stream Overlay (Inside Phone UI) -->
+        <div class="phone-agent-overlay hidden" id="phone-agent-overlay-panel">
+          <div class="phone-agent-overlay-header">
+            <h4 class="font-outfit">🤖 Agent Mind Stream</h4>
+            <button class="close-overlay-btn" onclick="togglePhoneAgentOverlay()">✕</button>
+          </div>
+          <div class="phone-agent-overlay-body" id="phone-agent-overlay-logs">
+            <!-- Populated dynamically with step-by-step reasoning steps -->
+          </div>
+        </div>
+
         <!-- Dynamic Screen Content -->
         <div class="phone-screen" id="phone-screen-content">
           
           <!-- SCREEN A: WAITING FOR SCAN -->
           <div class="screen-state" id="screen-waiting">
             <div class="qr-scanner-overlay">
+              <video id="scanner-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; border-radius:14px; position:absolute; top:0; left:0; display:none;"></video>
+              <canvas id="scanner-canvas" style="display:none;"></canvas>
               <div class="scanner-line"></div>
-              <div class="mock-qr">
+              <div class="mock-qr" id="mock-qr-placeholder">
                 <div class="qr-square qr-tl"></div>
                 <div class="qr-square qr-tr"></div>
                 <div class="qr-square qr-bl"></div>
                 <div class="qr-logo">🛡️</div>
               </div>
             </div>
-            <h2 class="font-outfit text-center">Ready to Scan</h2>
-            <p class="text-muted text-center">Tap a cuff scenario card on the left to simulate scanning an inside-wrist QR label.</p>
-            <button class="btn btn-primary btn-pulse font-outfit" onclick="simulateScan()">Scan Tag Now</button>
+            <h2 class="font-outfit text-center" id="scan-status-title">Ready to Scan</h2>
+            <p class="text-muted text-center" id="scan-status-desc" style="font-size:0.75rem; line-height: 1.3;">Print the physical QR codes and hold them up to your laptop camera, or select a scenario on the left.</p>
+            <div style="display:flex; flex-direction:column; gap:8px; width:100%; align-items:center;">
+              <button class="btn btn-primary btn-pulse font-outfit" id="start-webcam-btn" onclick="startCameraScanner()">📷 Start Scanner Cam</button>
+              <button class="btn btn-secondary font-outfit" id="stop-webcam-btn" onclick="stopCameraScanner()" style="display:none; font-size:0.75rem; padding:6px; width:100%;">Stop Camera</button>
+              <a href="#" class="text-center font-outfit" style="font-size:0.72rem; color:#818cf8; text-decoration:none; margin-top:4px;" onclick="simulateScan(); return false;">Or click here to mock scan scenario</a>
+            </div>
           </div>
 
           <!-- SCREEN B: TIER 1 - PUBLIC EMERGENCY VIEW -->
@@ -123,6 +153,13 @@
             <div class="phone-header">
               <div class="header-badge warning-glow">⚠️ PUBLIC EMERGENCY VIEW</div>
               <span class="tag-badge font-outfit" id="t1-tag-id">TAG-001</span>
+            </div>
+
+            <!-- Multilingual translation bar -->
+            <div class="lang-selector-bar">
+              <button class="lang-btn active" id="lang-btn-en" onclick="changeLanguage('en')">🇺🇸 EN</button>
+              <button class="lang-btn" id="lang-btn-es" onclick="changeLanguage('es')">🇪🇸 ES</button>
+              <button class="lang-btn" id="lang-btn-vi" onclick="changeLanguage('vi')">🇻🇳 VN</button>
             </div>
 
             <div class="patient-headline">
@@ -197,6 +234,17 @@
 
             <!-- Medical Details Accordion -->
             <div class="secure-scrollable-content">
+              <!-- AI Agent Proactive Triage Briefing -->
+              <div class="info-section agent-briefing-section">
+                <div class="info-label font-outfit" style="color: #a5b4fc; display: flex; align-items: center; gap: 6px;">
+                  <span>🤖 Proactive Agent Assessment</span>
+                  <span class="status-circle pulse-green" style="background-color: var(--secure-emerald); width: 8px; height: 8px;"></span>
+                </div>
+                <div class="agent-briefing-box font-outfit" id="t2-agent-briefing">
+                  Generating clinical summary and drug safety check...
+                </div>
+              </div>
+
               <div class="info-section">
                 <div class="info-label font-outfit">💊 Active Medications (EMR Sync)</div>
                 <div class="medications-list" id="t2-med-list">
@@ -238,8 +286,76 @@
             </div>
           </div>
 
+          <!-- SCREEN E: AR CAMERA TRANSLATE VIEW -->
+          <div class="screen-state hidden" id="screen-arcam">
+            <div class="phone-header">
+              <div class="header-badge ar-glow">📷 LIVE AR TRIAGE TRANSLATE</div>
+              <span class="tag-badge font-outfit">CAM-ACTIVE</span>
+            </div>
+
+            <!-- Multilingual translation bar for AR camera -->
+            <div class="lang-selector-bar">
+              <button class="lang-btn active" id="lang-btn-ar-en" onclick="changeLanguage('en')">🇺🇸 EN</button>
+              <button class="lang-btn" id="lang-btn-ar-es" onclick="changeLanguage('es')">🇪🇸 ES</button>
+              <button class="lang-btn" id="lang-btn-ar-vi" onclick="changeLanguage('vi')">🇻🇳 VN</button>
+            </div>
+
+
+            <div class="arcam-viewport">
+              <video id="ar-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:0;"></video>
+              <div class="arcam-grid"></div>
+              <div class="arcam-target-box">
+                <div class="target-corner tl"></div>
+                <div class="target-corner tr"></div>
+                <div class="target-corner bl"></div>
+                <div class="target-corner br"></div>
+              </div>
+              <div class="arcam-telemetry">
+                <div class="tel-row">
+                  <span>FPS: 60</span>
+                  <span>LATENCY: 12ms</span>
+                </div>
+                <div class="tel-row">
+                  <span>OCR: AUTO-ON</span>
+                  <span>ASL-POSE: 98%</span>
+                </div>
+              </div>
+              <div class="arcam-caption-overlay">
+                <div class="detected-speaker font-outfit" id="arcam-speaker">🧑‍⚕️ CLINICIAN (SPEAKER DETECTED)</div>
+                <div class="caption-bubble" id="arcam-subtitles">
+                  "Starting patient assessment. Please state your name."
+                </div>
+                <div class="caption-translation" id="arcam-translation">
+                  "Bắt đầu đánh giá bệnh nhân. Vui lòng cho biết tên của bạn."
+                </div>
+              </div>
+            </div>
+            
+            <div class="arcam-controls">
+              <h3 class="font-outfit text-center">AR Triage Simulation Control</h3>
+              <p class="text-muted text-center" style="font-size:0.72rem;margin-bottom:8px;">Simulate live camera captioning, translation, and ASL poses.</p>
+              
+              <div class="arcam-actions">
+                <button class="btn btn-secondary font-outfit" style="font-size:0.75rem;padding:6px;" onclick="triggerARScenario('speech')">🗣️ Speech Sync</button>
+                <button class="btn btn-secondary font-outfit" style="font-size:0.75rem;padding:6px;" onclick="triggerARScenario('sign')">🦻 ASL Pose Sync</button>
+              </div>
+            </div>
+          </div>
+
         </div>
         
+        <!-- Phone Tab Bar Navigation -->
+        <div class="phone-tab-bar" id="phone-tab-bar-nav">
+          <button class="tab-btn active" id="tab-btn-scan" onclick="switchPhoneTab('scan')">
+            <span class="tab-icon">🛡️</span>
+            <span class="tab-text font-outfit">Tag Scan</span>
+          </button>
+          <button class="tab-btn" id="tab-btn-camera" onclick="switchPhoneTab('camera')">
+            <span class="tab-icon">📷</span>
+            <span class="tab-text font-outfit">AR Triage</span>
+          </button>
+        </div>
+
         <!-- Phone Home indicator -->
         <div class="phone-home-indicator" onclick="resetSimulator()"></div>
       </div>

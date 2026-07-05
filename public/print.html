@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RescureTag™ | Printable QR Code Sheet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-light: #f8fafc;
+      --border-gray: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #4f46e5;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      background-color: var(--bg-light);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      border: 1px solid var(--border-gray);
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      border-bottom: 2px solid var(--bg-light);
+      padding-bottom: 20px;
+    }
+    
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2rem;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+    
+    .meta {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    
+    .ip-notice {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e3a8a;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      margin-bottom: 24px;
+      display: inline-block;
+      text-align: left;
+    }
+    
+    .qr-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+    
+    .qr-card {
+      border: 1px solid var(--border-gray);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      background: #fafafa;
+    }
+    
+    .qr-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    
+    .qr-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    
+    .qr-image-container {
+      width: 200px;
+      height: 200px;
+      background: white;
+      border: 1px solid var(--border-gray);
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .qr-image {
+      max-width: 100%;
+      max-height: 100%;
+    }
+    
+    .qr-target-url {
+      font-family: monospace;
+      font-size: 0.72rem;
+      word-break: break-all;
+      background: #f1f5f9;
+      padding: 6px;
+      border-radius: 4px;
+      color: #334155;
+    }
+    
+    .print-actions {
+      text-align: center;
+    }
+    
+    .btn-print {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+      transition: opacity 0.2s;
+    }
+    
+    .btn-print:hover {
+      opacity: 0.9;
+    }
+    
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      .container {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+      }
+      .print-actions, .ip-notice {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>RescureTag™ Physical Code Sheet</h1>
+      <p class="meta">Print these tags out and scan them with your real phone's camera to demo the system.</p>
+      
+      <div class="ip-notice" id="ip-display-box">
+        🔍 Detecting Local IP Address...
+      </div>
+    </header>
+    
+    <div class="qr-grid" id="qr-codes-container">
+      <!-- Populated dynamically -->
+    </div>
+    
+    <div class="print-actions">
+      <button class="btn-print" onclick="window.print()">🖨️ Print Code Sheet</button>
+    </div>
+  </div>
+
+  <script>
+    async function initPrintSheet() {
+      try {
+        const res = await fetch('/api/ip');
+        const data = await res.json();
+        const ip = data.ip;
+        
+        document.getElementById('ip-display-box').innerHTML = `
+          <strong>Network Sync Active:</strong> Your laptop is hosting the server on 
+          <code>http://${ip}:3000</code>.<br>
+          Make sure your phone is connected to the same Wi-Fi network before scanning!
+        `;
+        
+        const scenarios = [
+          { id: 'tag_asthma_001', name: 'Ethan Carter', type: 'Asthma Scenario', nonce: 'xyz123' },
+          { id: 'tag_stroke_002', name: 'Robert Cooper', type: 'Deaf/Stroke Scenario', nonce: 'abc456' },
+          { id: 'tag_bleeding_003', name: 'John R. Doe', type: 'Hemophilia Scenario', nonce: 'uvw789' }
+        ];
+        
+        const container = document.getElementById('qr-codes-container');
+        container.innerHTML = '';
+        
+        scenarios.forEach(scen => {
+          const scanUrl = `http://${ip}:3000/?tagId=${scen.id}&nonce=${scen.nonce}`;
+          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(scanUrl)}`;
+          
+          const card = document.createElement('div');
+          card.className = 'qr-card';
+          card.innerHTML = `
+            <div class="qr-title">${scen.name}</div>
+            <div class="qr-subtitle">${scen.type}</div>
+            <div class="qr-image-container">
+              <img src="${qrApiUrl}" class="qr-image" alt="${scen.name} QR Code">
+            </div>
+            <div class="qr-target-url">${scanUrl}</div>
+          `;
+          container.appendChild(card);
+        });
+        
+      } catch (err) {
+        document.getElementById('ip-display-box').innerHTML = `
+          <strong>Error:</strong> Could not connect to API server. Ensure <code>node server.js</code> is running locally.
+        `;
+      }
+    }
+    
+    initPrintSheet();
+  </script>
+</body>
+</html>

@@ -3,38 +3,120 @@ let currentTagId = 'tag_asthma_001';
 let currentNonce = 'xyz123';
 let authToken = null;
 let currentScenarioData = null;
+let currentLanguage = 'en';
+let lastActiveScreen = 'screen-waiting';
+let videoStream = null;
+let scanningActive = false;
+let arVideoStream = null;
+
+
+// Native Web Audio Synthesizer chimes
+function playSound(type) {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    const now = audioCtx.currentTime;
+    
+    if (type === 'scan') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      gain.gain.setValueAtTime(0.08, now);
+      osc.start(now);
+      osc.frequency.setValueAtTime(1320, now + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      osc.stop(now + 0.2);
+    } else if (type === 'success') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523.25, now);
+      gain.gain.setValueAtTime(0.12, now);
+      osc.start(now);
+      osc.frequency.setValueAtTime(659.25, now + 0.1);
+      osc.frequency.setValueAtTime(783.99, now + 0.2);
+      osc.frequency.setValueAtTime(1046.50, now + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+      osc.stop(now + 0.45);
+    } else if (type === 'error') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, now);
+      gain.gain.setValueAtTime(0.12, now);
+      osc.start(now);
+      osc.frequency.setValueAtTime(130, now + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+      osc.stop(now + 0.25);
+    }
+  } catch (err) {
+    console.warn('AudioContext failed:', err);
+  }
+}
 
 // Initialize app on DOM Load
 document.addEventListener('DOMContentLoaded', () => {
   logToConsole('RescureTag sandbox initialized. Ready for scan event.', 'system');
   logToConsole('Express router listening at port 3000.', 'system');
+
+  // Check URL query parameters to auto-trigger scan (physical tag scans)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlTagId = urlParams.get('tagId');
+  const urlNonce = urlParams.get('nonce');
+  if (urlTagId && urlNonce) {
+    currentTagId = urlTagId;
+    currentNonce = urlNonce;
+    
+    // Auto-select card on Left panel if it exists
+    const scenarioBtn = document.getElementById(`scen-${urlTagId}`);
+    if (scenarioBtn) {
+      document.querySelectorAll('.scenario-card').forEach(card => card.classList.remove('active'));
+      scenarioBtn.classList.add('active');
+    }
+    
+    logToConsole(`🚨 Physical QR scan detected via URL parameters! Loading ${urlTagId}...`, 'security');
+    // Start scan automatically
+    simulateScan();
+  }
 });
 
 // Write line into Debugger Console
 function logToConsole(message, type = 'system') {
   const container = document.getElementById('console-logs-container');
-  if (!container) return;
-
-  const line = document.createElement('div');
-  line.className = `console-line ${type}-line`;
-  
   const timestamp = new Date().toLocaleTimeString();
-  line.innerText = `[${timestamp}] ${message}`;
-  
-  container.appendChild(line);
-  container.scrollTop = container.scrollHeight;
+
+  if (container) {
+    const line = document.createElement('div');
+    line.className = `console-line ${type}-line`;
+    line.innerText = `[${timestamp}] ${message}`;
+    container.appendChild(line);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  // Duplicate to phone overlay logs for focus mode
+  const overlayLogs = document.getElementById('phone-agent-overlay-logs');
+  if (overlayLogs) {
+    const line = document.createElement('div');
+    line.className = `overlay-log-line ${type}-line`;
+    line.innerText = `[${timestamp}] ${message}`;
+    overlayLogs.appendChild(line);
+    overlayLogs.scrollTop = overlayLogs.scrollHeight;
+  }
 }
 
 // Clear Debugger Console
 function clearConsole() {
   const container = document.getElementById('console-logs-container');
   if (container) container.innerHTML = '';
+  const overlayLogs = document.getElementById('phone-agent-overlay-logs');
+  if (overlayLogs) overlayLogs.innerHTML = '';
 }
 
 // 1. Select cuff tag scenario
 function selectScenario(tagId, nonce) {
   currentTagId = tagId;
   currentNonce = nonce;
+  currentLanguage = 'en';
   
   // Highlight active card
   document.querySelectorAll('.scenario-card').forEach(card => card.classList.remove('active'));
@@ -74,6 +156,7 @@ function toggleAuth() {
 
 // 2. Perform mock QR scan (call Express API)
 async function simulateScan() {
+  playSound('scan');
   logToConsole(`Initiating Scan Request for ${currentTagId}...`, 'system');
   
   try {
@@ -172,6 +255,7 @@ function attemptSecureUnlock() {
   if (authToken === 'MOCK_CLINICIAN_AUTH_TOKEN_SUCCESS') {
     simulateScan(); // Rescans with token to unlock Tier 2
   } else {
+    playSound('error');
     logToConsole('[SECURITY SHIELD] Blocked unlock. Clinician key not present. SSO validation failed.', 'error');
     alert('Access Denied: Please toggle "Clinician SSO" to active on the left to simulate a secure card tap/SSO.');
   }
@@ -180,6 +264,7 @@ function attemptSecureUnlock() {
 // Run Biometric scan animation before showing Tier 2
 function triggerFaceIDUnlock(data) {
   transitionScreen('screen-faceid');
+  playSound('success');
   const statusEl = document.getElementById('faceid-status');
   statusEl.innerText = "Checking clinician certificate...";
 
@@ -198,6 +283,31 @@ function renderTier2View(secureData) {
   document.getElementById('t2-patient-dob').innerText = secureData.dob;
   document.getElementById('t2-patient-mrn').innerText = secureData.mrn;
   document.getElementById('t2-notes').innerText = secureData.clinicalNotes;
+
+  // AI Agent Proactive Briefing Evaluation
+  const briefingEl = document.getElementById('t2-agent-briefing');
+  if (briefingEl) {
+    let briefText = '';
+    if (currentTagId === 'tag_asthma_001') {
+      briefText = `🛡️ <strong>Clinical Dispatch Agent Synced</strong> | <em>Ethan Carter</em> (21yo CS Student)<br>
+      • <strong>EMR Meds Checked:</strong> Albuterol & Flovent. No conflicting active drugs.<br>
+      • <strong>Proactive Check:</strong> Asthmatic history flags respiratory distress risk. Advise checking for inhaler availability.<br>
+      • <strong>Clinician Action:</strong> Oxygen saturations check indicated. If cold-air or exercise-induced, provide warmth.`;
+    } else if (currentTagId === 'tag_stroke_002') {
+      briefText = `🛡️ <strong>Clinical Dispatch Agent Synced</strong> | <em>Robert Cooper</em> (52yo Immigrant)<br>
+      • <strong>EMR Meds Checked:</strong> Eliquis (Apixaban). <strong style="color:#f87171;">CRITICAL BLEEDING CONTRAINDICATION</strong> active.<br>
+      • <strong>Drug Safety warning:</strong> STRICTLY AVOID NSAIDs (Aspirin, Advil, Ibuprofen). Risk of fatal haemorrhage.<br>
+      • <strong>Accessibility Assist:</strong> Patient is DEAF. Use interactive ASL pain assessment tiles below for triage.`;
+    } else if (currentTagId === 'tag_bleeding_003') {
+      briefText = `🛡️ <strong>Clinical Dispatch Agent Synced</strong> | <em>John R. Doe</em> (29yo Adventurer)<br>
+      • <strong>EMR Meds Checked:</strong> Factor VIII Infusion kit. <strong style="color:#f87171;">CRITICAL HEMOPHILIA A WARNING</strong> active.<br>
+      • <strong>Drug Safety warning:</strong> STRICTLY AVOID Aspirin/Ibuprofen. Increases bleed times.<br>
+      • <strong>Clinician Action:</strong> Apply firm, continuous pressure to wound for >15 minutes. Infusion kit in backpack.`;
+    } else {
+      briefText = `🛡️ <strong>EMR Agent Briefing Active</strong> | Records Synced. Ready for drug safety queries.`;
+    }
+    briefingEl.innerHTML = briefText;
+  }
 
   // Render meds list
   const medsList = document.getElementById('t2-med-list');
@@ -313,12 +423,30 @@ function transitionScreen(screenId) {
     screen.classList.add('hidden');
   });
   document.getElementById(screenId).classList.remove('hidden');
+  if (screenId !== 'screen-faceid' && screenId !== 'screen-arcam') {
+    lastActiveScreen = screenId;
+  }
 }
 
 // Reset entire simulator
 function resetSimulator() {
+  stopCameraScanner();
+  stopARCameraStream();
   transitionScreen('screen-waiting');
+
   currentScenarioData = null;
+  currentLanguage = 'en';
+  
+  // Reset active language selectors
+  document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+  const enBtn = document.getElementById('lang-btn-en');
+  if (enBtn) enBtn.classList.add('active');
+
+  // Reset tab navigation active state
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  const scanTab = document.getElementById('tab-btn-scan');
+  if (scanTab) scanTab.classList.add('active');
+
   logToConsole('Simulator state reset. Virtual screen set to waiting.', 'system');
 }
 
@@ -439,3 +567,418 @@ function closeAslModalOnOutsideClick(event) {
     closeAslModal();
   }
 }
+
+// --- Dynamic Multilingual Translation Maps ---
+const translationMaps = {
+  tag_asthma_001: {
+    en: {
+      condition: "Severe Asthma",
+      contact: "Mother: (555) 019-2834 (English/Spanish)",
+      steps: [
+        "Locate rescue inhaler (Albuterol) in backpack front pocket.",
+        "Assist patient in sitting upright and taking 2 puffs.",
+        "Call 911 if breathing doesn't improve within 5 minutes."
+      ]
+    },
+    es: {
+      condition: "Asma Grave",
+      contact: "Madre: (555) 019-2834 (Inglés/Español)",
+      steps: [
+        "Busque el inhalador de rescate (Albuterol) en el bolsillo delantero de la mochila.",
+        "Ayude al paciente a sentarse erguido y a inhalar 2 dosis.",
+        "Llame al 911 si la respiración no mejora en 5 minutos."
+      ]
+    },
+    vi: {
+      condition: "Hen suyễn Nặng",
+      contact: "Mẹ: (555) 019-2834 (Tiếng Anh/Tây Ban Nha)",
+      steps: [
+        "Tìm bình xịt cắt cơn (Albuterol) ở ngăn trước ba lô.",
+        "Đỡ bệnh nhân ngồi thẳng dậy và xịt 2 nhát.",
+        "Gọi 115 nếu thở không cải thiện sau 5 phút."
+      ]
+    }
+  },
+  tag_stroke_002: {
+    en: {
+      condition: "Deaf / Prior Stroke History",
+      contact: "Spouse: (555) 014-9988 (Text Only)",
+      steps: [
+        "Patient is DEAF. Please use clear gestures or write notes on paper/phone.",
+        "Check for FAST stroke signs (Face drooping, Arm weakness, Speech difficulty).",
+        "If signs are present, write '911' on a paper and call immediately."
+      ]
+    },
+    es: {
+      condition: "Sordo / Historial de Accidente Cerebrovascular",
+      contact: "Cónyuge: (555) 014-9988 (Solo Mensajes)",
+      steps: [
+        "El paciente es SORDO. Use gestos claros o escriba notas en el teléfono/papel.",
+        "Examine los signos de FAST (rostro caído, debilidad en brazos, dificultad para hablar).",
+        "Si detecta signos, escriba '911' en un papel y llame de inmediato."
+      ]
+    },
+    vi: {
+      condition: "Bị Điếc / Tiền sử Đột quỵ",
+      contact: "Vợ/Chồng: (555) 014-9988 (Chỉ Nhắn tin)",
+      steps: [
+        "Bệnh nhân bị ĐIẾC. Vui lòng dùng cử chỉ rõ ràng hoặc viết giấy/điện thoại.",
+        "Kiểm tra dấu hiệu đột quỵ FAST (Méo mặt, yếu tay, khó nói).",
+        "Nếu có dấu hiệu, ghi chữ '911' (hoặc 115) lên giấy và gọi ngay lập tức."
+      ]
+    }
+  },
+  tag_bleeding_003: {
+    en: {
+      condition: "Hemophilia A (Severe)",
+      contact: "Hematology Clinic: (555) 887-2190",
+      steps: [
+        "Apply firm, continuous pressure to any bleeding site for at least 15 minutes.",
+        "DO NOT give aspirin or ibuprofen (causes increased bleeding).",
+        "Patient has factor VIII infusion kit in outdoor pack; assist if trained."
+      ]
+    },
+    es: {
+      condition: "Hemofilia A (Grave)",
+      contact: "Clínica Hematológica: (555) 887-2190",
+      steps: [
+        "Aplique presión firme y continua en cualquier zona de sangrado durante 15 minutos.",
+        "NO administre aspirina ni ibuprofeno (agravan el sangrado).",
+        "El paciente lleva un kit de infusión de Factor VIII en su mochila; ayude si sabe."
+      ]
+    },
+    vi: {
+      condition: "Ưa chảy máu Hemophilia A (Nặng)",
+      contact: "Phòng khám Huyết học: (555) 887-2190",
+      steps: [
+        "Đè ép chặt và liên tục lên chỗ chảy máu trong ít nhất 15 phút.",
+        "KHÔNG ĐƯỢC cho dùng aspirin hoặc ibuprofen (làm tăng chảy máu).",
+        "Bệnh nhân có bộ truyền yếu tố VIII trong ba lô ngoại cảnh; hỗ trợ nếu đã tập huấn."
+      ]
+    }
+  }
+};
+
+function changeLanguage(lang) {
+  currentLanguage = lang;
+  logToConsole(`Language changed: ${lang.toUpperCase()}`, 'system');
+  playSound('scan');
+
+  // Toggle active styling on language buttons
+  document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+  
+  const scanBtn = document.getElementById(`lang-btn-${lang}`);
+  if (scanBtn) scanBtn.classList.add('active');
+  
+  const arBtn = document.getElementById(`lang-btn-ar-${lang}`);
+  if (arBtn) arBtn.classList.add('active');
+
+  // If a scenario is scanned, translate public DOM elements
+  if (currentScenarioData) {
+    const content = translationMaps[currentTagId][lang];
+    if (content) {
+      document.getElementById('t1-condition-badge').innerText = content.condition;
+      document.getElementById('t1-contact').innerText = content.contact;
+
+      const listContainer = document.getElementById('t1-first-aid-list');
+      listContainer.innerHTML = '';
+      content.steps.forEach(step => {
+        const li = document.createElement('li');
+        li.innerText = step;
+        listContainer.appendChild(li);
+      });
+    }
+  }
+}
+
+// --- Phone Navigation Tabs ---
+function switchPhoneTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  
+  if (tab === 'scan') {
+    document.getElementById('tab-btn-scan').classList.add('active');
+    logToConsole('Phone view switched to Tag Scanner.', 'system');
+    stopARCameraStream();
+    transitionScreen(lastActiveScreen);
+  } else if (tab === 'camera') {
+    document.getElementById('tab-btn-camera').classList.add('active');
+    logToConsole('Phone view switched to Live AR Triage Cam.', 'system');
+    startARCameraStream();
+    transitionScreen('screen-arcam');
+  }
+}
+
+// --- AR Camera Scenario Simulation ---
+function triggerARScenario(type) {
+  playSound('scan');
+  
+  const speakerEl = document.getElementById('arcam-speaker');
+  const subsEl = document.getElementById('arcam-subtitles');
+  const transEl = document.getElementById('arcam-translation');
+
+  const arScenarios = {
+    tag_asthma_001: {
+      speech: {
+        speaker: "🧑‍⚕️ CLINICIAN (ENGLISH)",
+        subs: '"I am administering Albuterol now. Sit up straight and try to take slow, deep breaths."',
+        trans: {
+          vi: '"Tôi đang cho dùng thuốc xịt Albuterol. Hãy ngồi thẳng dậy và cố gắng thở chậm, sâu."',
+          es: '"Estoy administrando Albuterol ahora. Siéntese derecho e intente respirar lento y profundo."',
+          en: '"I am administering Albuterol now. Sit up straight and try to take slow, deep breaths."'
+        }
+      },
+      sign: {
+        speaker: "🦻 PATIENT SIGN POSE (ASL)",
+        subs: 'Signs: [CANT BREATHE] -> [CHEST] -> [TIGHT]',
+        trans: {
+          vi: '"Bản dịch ngôn ngữ ký hiệu: [KHÔNG THỂ THỞ] -> [NGỰC] -> [TỨC]" (Tôi không thể thở được, ngực tôi rất tức.)',
+          es: '"Traducción de Señas: [NO PUEDO RESPIRAR] -> [PECHO] -> [APRETADO]" (No puedo respirar, mi pecho está muy apretado.)',
+          en: '"ASL Translation: [CAN\'T BREATHE] -> [CHEST] -> [TIGHT]" (I cannot breathe, my chest is very tight.)'
+        }
+      }
+    },
+    tag_stroke_002: {
+      speech: {
+        speaker: "🧑‍⚕️ CLINICIAN (ENGLISH)",
+        subs: '"Robert, we are preparing an IV. Can you squeeze my hand if you feel this?"',
+        trans: {
+          vi: '"Robert, chúng tôi đang chuẩn bị truyền dịch. Chú có thể bóp tay cháu nếu cảm thấy thế này không?"',
+          es: '"Robert, estamos preparando una vía intravenosa. ¿Puede apretar mi mano si siente esto?"',
+          en: '"Robert, we are preparing an IV. Can you squeeze my hand if you feel this?"'
+        }
+      },
+      sign: {
+        speaker: "🦻 PATIENT SIGN POSE (ASL)",
+        subs: 'Signs: [HEADACHE] -> [NUMB] -> [LEFT ARM]',
+        trans: {
+          vi: '"Bản dịch ngôn ngữ ký hiệu: [ĐAU ĐẦU] -> [TÊ LỆT] -> [TAY TRÁI]" (Tôi bị đau đầu dữ dội và cánh tay trái của tôi bị tê.)',
+          es: '"Traducción de Señas: [DOLOR DE CABEZA] -> [ENTUMECIDO] -> [BRAZO IZQUIERDO]" (Tengo un fuerte dolor de cabeza y mi brazo izquierdo está entumecido.)',
+          en: '"ASL Translation: [HEADACHE] -> [NUMB] -> [LEFT ARM]" (I have a severe headache and my left arm is numb.)'
+        }
+      }
+    },
+    tag_bleeding_003: {
+      speech: {
+        speaker: "🧑‍⚕️ CLINICIAN (ENGLISH)",
+        subs: '"Applying firm pressure to your wound. We have Factor VIII ready to infuse."',
+        trans: {
+          vi: '"Đang ép chặt vết thương của bạn. Chúng tôi đã có sẵn Yếu tố VIII để truyền."',
+          es: '"Aplicando presión firme en su herida. Tenemos listo el Factor VIII para infundir."',
+          en: '"Applying firm pressure to your wound. We have Factor VIII ready to infuse."'
+        }
+      },
+      sign: {
+        speaker: "🦻 PATIENT SIGN POSE (ASL)",
+        subs: 'Signs: [BLEEDING] -> [FALL] -> [PAIN]',
+        trans: {
+          vi: '"Bản dịch ngôn ngữ ký hiệu: [CHẢY MÁU] -> [NGÃ] -> [ĐAU]" (Tôi bị ngã và đang chảy máu, tôi rất đau.)',
+          es: '"Traducción de Señas: [SANGRANDO] -> [CAÍDA] -> [DOLOR]" (Me caí y estoy sangrando, tengo mucho dolor.)',
+          en: '"ASL Translation: [BLEEDING] -> [FALL] -> [PAIN]" (I fell down and I am bleeding, I have a lot of pain.)'
+        }
+      }
+    }
+  };
+
+  const scenarioKey = arScenarios[currentTagId] ? currentTagId : 'tag_asthma_001';
+  const data = arScenarios[scenarioKey][type];
+
+  if (data) {
+    logToConsole(`AR Triage Sync triggered: ${type.toUpperCase()} scenario.`, 'system');
+    speakerEl.innerText = data.speaker;
+    subsEl.innerText = data.subs;
+    
+    // Choose translation overlay based on active language
+    const transText = data.trans[currentLanguage] || data.trans['en'];
+    transEl.innerText = transText;
+  }
+}
+
+// --- Focus Phone Only Mode ---
+function toggleFocusMode() {
+  document.body.classList.toggle('focus-phone');
+  const btn = document.getElementById('focus-toggle');
+  if (document.body.classList.contains('focus-phone')) {
+    btn.innerText = '💻 Show Web Dashboard';
+    logToConsole('Focus Phone Only Mode active. Hiding desktop controls.', 'security');
+  } else {
+    btn.innerText = '📱 Focus Phone Mode';
+    logToConsole('Desktop Web Dashboard visible.', 'system');
+  }
+}
+
+// --- Phone Agent Reasoning Overlay ---
+function togglePhoneAgentOverlay() {
+  const panel = document.getElementById('phone-agent-overlay-panel');
+  if (panel) {
+    panel.classList.toggle('hidden');
+    playSound('scan');
+  }
+}
+
+// --- Laptop Camera QR Scanner ---
+async function startCameraScanner() {
+  const video = document.getElementById('scanner-video');
+  const placeholder = document.getElementById('mock-qr-placeholder');
+  const startBtn = document.getElementById('start-webcam-btn');
+  const stopBtn = document.getElementById('stop-webcam-btn');
+  const title = document.getElementById('scan-status-title');
+  const desc = document.getElementById('scan-status-desc');
+
+  logToConsole('Initiating laptop camera webcam stream...', 'system');
+  if (title) title.innerText = 'Requesting Camera...';
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { facingMode: "environment", width: { ideal: 300 }, height: { ideal: 300 } } 
+    });
+    
+    videoStream = stream;
+    if (video) {
+      video.srcObject = stream;
+      video.style.display = 'block';
+    }
+    if (placeholder) placeholder.style.display = 'none';
+    
+    if (startBtn) startBtn.style.display = 'none';
+    if (stopBtn) stopBtn.style.display = 'block';
+    
+    if (title) title.innerText = 'Align QR Code';
+    if (desc) desc.innerText = 'Hold the printed QR code sheet up to your laptop camera.';
+    
+    scanningActive = true;
+    requestAnimationFrame(tickScan);
+    logToConsole('Webcam stream active. Scanning for printed RescureTag QR nonces...', 'security');
+  } catch (err) {
+    logToConsole(`Camera access denied or unavailable: ${err.message}`, 'error');
+    if (title) title.innerText = 'Camera Error';
+    if (desc) desc.innerText = 'Could not access webcam. Make sure permissions are granted, or select a scenario card on the left.';
+    if (startBtn) startBtn.style.display = 'block';
+    if (stopBtn) stopBtn.style.display = 'none';
+  }
+}
+
+function stopCameraScanner() {
+  scanningActive = false;
+  
+  const video = document.getElementById('scanner-video');
+  const placeholder = document.getElementById('mock-qr-placeholder');
+  const startBtn = document.getElementById('start-webcam-btn');
+  const stopBtn = document.getElementById('stop-webcam-btn');
+  const title = document.getElementById('scan-status-title');
+  const desc = document.getElementById('scan-status-desc');
+
+  if (videoStream) {
+    videoStream.getTracks().forEach(track => track.stop());
+    videoStream = null;
+  }
+
+  if (video) {
+    video.srcObject = null;
+    video.style.display = 'none';
+  }
+  
+  if (placeholder) placeholder.style.display = 'grid';
+  
+  if (startBtn) startBtn.style.display = 'block';
+  if (stopBtn) stopBtn.style.display = 'none';
+  
+  if (title) title.innerText = 'Ready to Scan';
+  if (desc) desc.innerText = 'Print the physical QR codes and hold them up to your laptop camera, or select a scenario on the left.';
+  logToConsole('Webcam stream stopped.', 'system');
+}
+
+function tickScan() {
+  if (!scanningActive) return;
+
+  if (typeof jsQR === 'undefined') {
+    logToConsole('[ERROR] jsQR scan engine is not loaded yet. Make sure your laptop has internet access to retrieve the library from the CDN.', 'error');
+    stopCameraScanner();
+    alert('QR Decoder engine is not loaded. Ensure your laptop is connected to the internet, or click the "mock scan" bypass link.');
+    return;
+  }
+
+  const video = document.getElementById('scanner-video');
+  const canvas = document.getElementById('scanner-canvas');
+
+  if (video && video.readyState === video.HAVE_ENOUGH_DATA) {
+    const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: "dontInvert",
+    });
+
+    if (code) {
+      logToConsole(`QR Code parsed: ${code.data}`, 'security');
+      try {
+        const url = new URL(code.data);
+        const tagId = url.searchParams.get('tagId');
+        const nonce = url.searchParams.get('nonce');
+        
+        if (tagId && nonce) {
+          logToConsole(`Valid RescureTag QR detected! [Tag: ${tagId.toUpperCase()}, Nonce: ${nonce}]`, 'security');
+          
+          // Switch global state parameters
+          currentTagId = tagId;
+          currentNonce = nonce;
+          
+          // Synchronize scenario card selection on the left
+          const scenarioBtn = document.getElementById(`scen-${tagId}`);
+          if (scenarioBtn) {
+            document.querySelectorAll('.scenario-card').forEach(card => card.classList.remove('active'));
+            scenarioBtn.classList.add('active');
+          }
+          
+          stopCameraScanner();
+          simulateScan();
+          return; // Stop scan loop
+        } else {
+          logToConsole('Scanned QR code does not contain RescureTag parameters.', 'error');
+        }
+      } catch (e) {
+        logToConsole(`Scanned non-URL text: "${code.data}"`, 'error');
+      }
+    }
+  }
+
+  requestAnimationFrame(tickScan);
+}
+
+// --- AR Camera Stream ---
+async function startARCameraStream() {
+  if (arVideoStream) return;
+  
+  const video = document.getElementById('ar-video');
+  logToConsole('Initiating AR Triage live webcam stream...', 'system');
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { facingMode: "environment" } 
+    });
+    
+    arVideoStream = stream;
+    if (video) {
+      video.srcObject = stream;
+    }
+    logToConsole('AR webcam feed active behind HUD.', 'security');
+  } catch (err) {
+    logToConsole(`AR webcam feed failed: ${err.message}`, 'error');
+  }
+}
+
+function stopARCameraStream() {
+  const video = document.getElementById('ar-video');
+  if (arVideoStream) {
+    arVideoStream.getTracks().forEach(track => track.stop());
+    arVideoStream = null;
+  }
+  if (video) {
+    video.srcObject = null;
+  }
+  logToConsole('AR webcam feed stopped.', 'system');
+}
+
+

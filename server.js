@@ -189,6 +189,15 @@ Answer the clinician's query clearly, professionally, and concisely. If a drug c
       } else if (lowerMsg.includes('medication') || lowerMsg.includes('meds')) {
         const medList = rawPatientRecord.activeMedications.map(m => `- **${m.name}** (${m.dose}, ${m.frequency})`).join('\n');
         agentResponseText = `Here is ${rawPatientRecord.fullName}'s current active medication list:\n${medList}\n\nPlease verify that these match the current administration schedule.`;
+      } else if (lowerMsg.includes('summarize') || lowerMsg.includes('history') || lowerMsg.includes('summary')) {
+        const medList = rawPatientRecord.activeMedications.map(m => `- **${m.name}** (${m.dose}, ${m.frequency})`).join('\n');
+        agentResponseText = `### Clinical Summary for ${rawPatientRecord.fullName} (MRN: ${rawPatientRecord.mrn})
+- **Primary Diagnosis:** ${rawPatientRecord.condition}
+- **Clinical Narrative:** ${rawPatientRecord.clinicalNotes}
+- **Active Medications:**
+${medList}
+
+*Clinical briefing completed by EMR Decision Agent (Offline Sandbox Mode).*`;
       } else {
         agentResponseText = `I am the EMR Clinical Agent. I have analyzed ${rawPatientRecord.fullName}'s secure records (MRN: ${rawPatientRecord.mrn}). Let me know if you need to check drug contraindications, review recent labs, or get clinical summaries.`;
       }
@@ -207,7 +216,25 @@ Answer the clinician's query clearly, professionally, and concisely. If a drug c
   }
 });
 
+// Expose local network IP to dynamically generate scan links
+app.get('/api/ip', (req, res) => {
+  const os = require('os');
+  const interfaces = os.networkInterfaces();
+  let localIp = 'localhost';
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (!iface.internal && iface.family === 'IPv4') {
+        localIp = iface.address;
+        break;
+      }
+    }
+    if (localIp !== 'localhost') break;
+  }
+  res.json({ ip: localIp });
+});
+
 // Start Express Server
 app.listen(port, () => {
   console.log(`RescureTag Simulator Backend running on http://localhost:${port}`);
 });
+
