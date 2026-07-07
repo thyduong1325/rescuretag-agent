@@ -1,6 +1,6 @@
 # RescureTag™: Scan for Help. Unlock Secure Details.
 
-**Track Submission:** Agents for Business / Concierge Agents  
+**Track Submission:** Agents for Good (Secondary: Concierge Agents / Agents for Business)  
 **Concept Focus:** Multi-Agent Systems (ADK), Custom EMR MCP Server, Dynamic Security Guards (PII Scrubbing), Local Signed QR Nonces.
 
 RescureTag is a hardware-enabled SaaS platform pairing a hidden, skin-comfortable QR tag sewn inside a garment's wrist-cuff flap with a secure, two-tier, accessibility-first software experience. This repository contains the complete local sandbox prototype demonstrating the agent interactions, security compliance filters, and custom MCP EMR tools.
@@ -80,12 +80,13 @@ Implements standard Model Context Protocol (MCP) JSON-RPC tool endpoints:
 
 ### Step 1: Install Dependencies
 ```bash
-cd rescuretag-app
+git clone https://github.com/thyduong1325/rescuretag-agent.git
+cd rescuretag-agent
 npm install
 ```
 
 ### Step 2: Configure Environment Variable (Optional)
-To enable live AI generation with Gemini, create a `.env` file in the root of `rescuretag-app/`:
+To enable live AI generation with Gemini, create a `.env` file in the root of the project:
 ```env
 GEMINI_API_KEY="your-google-gemini-api-key-here"
 ```
