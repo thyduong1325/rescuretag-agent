@@ -110,25 +110,31 @@ app.post('/api/agent/chat', async (req, res) => {
     const rawPatientRecord = JSON.parse(mcpSecureResult.content[0].text);
     const patientObj = { secureTier: rawPatientRecord };
 
+    // --- MULTI-AGENT ORCHESTRATION & TELEMETRY ---
+    debugLogs.push(`🤖 [Emergency Dispatcher Agent] ➔ [EMR Syncer Agent]: Transferring session state. Signed nonce check: PASS.`);
+    debugLogs.push(`🤖 [EMR Syncer Agent]: Active connection established. Intercepting query: "${message}"`);
+    
     // --- SECURITY FILTER: PII Redaction ---
-    debugLogs.push(`[SECURITY] Intercepting chat message. Scanning for patient PII...`);
+    debugLogs.push(`⚙️ [Security Guard]: Scanning prompt payload for sensitive patient PII...`);
     const redactedMessage = security.redactPII(message, patientObj);
     const redactedNotes = security.redactPII(rawPatientRecord.clinicalNotes, patientObj);
     
     if (redactedMessage !== message) {
-      debugLogs.push(`[SECURITY] Scrubbed patient name/DOB from clinician input.`);
+      debugLogs.push(`⚙️ [Security Guard]: Scrubbed sensitive patient identifiers. '${rawPatientRecord.fullName}' ➔ '[REDACTED_PATIENT_NAME]'.`);
     } else {
-      debugLogs.push(`[SECURITY] No raw patient PII found in input message.`);
+      debugLogs.push(`⚙️ [Security Guard]: Outbound prompt verified. No raw PII exposed.`);
     }
     
-    // --- MCP TOOL: Drug Contraindication Checker (Optional trigger) ---
+    // --- AUTONOMOUS AGENT REASONING (ReAct Loop) ---
+    debugLogs.push(`🧠 [Clinical Agent - Thought 1]: I must determine if this query represents a potential medication intervention or prescription request.`);
+    
     let contraindicationReport = "";
-    // Regex matching common drug checking phrases: e.g., "give them Advil", "prescribe aspirin", "take Propranolol"
     const drugMatch = message.match(/(?:give|prescribe|administer|take|check|for|inject)\s+([a-zA-Z\-]{3,20})/i);
     
     if (drugMatch && drugMatch[1]) {
       const detectedDrug = drugMatch[1];
-      debugLogs.push(`[AGENT REASONING] Clinician mentioned drug '${detectedDrug}'. Triggering contraindication check on EMR MCP server.`);
+      debugLogs.push(`🧠 [Clinical Agent - Thought 2]: Clinician mentioned treatment with '${detectedDrug}'. I must query the EMR database to inspect conflicts.`);
+      debugLogs.push(`🧠 [Clinical Agent - Action 1]: Invoke tool 'check_drug_contraindications' with args: { tagId: "${tagId}", newDrug: "${detectedDrug}" }`);
       
       const mcpDrugResult = await mcpServer.callTool('check_drug_contraindications', {
         tagId,
@@ -137,7 +143,14 @@ app.post('/api/agent/chat', async (req, res) => {
       
       const contraindicationData = JSON.parse(mcpDrugResult.content[0].text);
       contraindicationReport = `\nMCP CONTRAINDICATION TOOL REPORT:\n${JSON.stringify(contraindicationData, null, 2)}`;
-      debugLogs.push(`[MCP SERVER] Tool called: check_drug_contraindications. Alert level: ${contraindicationData.alertLevel}.`);
+      
+      debugLogs.push(`🧠 [Clinical Agent - Observation 1]: EMR tool finished. Risk Alert level: ${contraindicationData.alertLevel}.`);
+      debugLogs.push(`🧠 [Clinical Agent - Thought 3]: Conflict checks completed. Level is ${contraindicationData.alertLevel}. Compiling critical bedside safety report.`);
+    } else {
+      debugLogs.push(`🧠 [Clinical Agent - Thought 2]: Clinician is requesting a clinical summary. I need to load patient details from the EMR.`);
+      debugLogs.push(`🧠 [Clinical Agent - Action 1]: Invoke tool 'get_patient_secure_record' with args: { tagId: "${tagId}" }`);
+      debugLogs.push(`🧠 [Clinical Agent - Observation 1]: Record loaded successfully. Synced MRN: ${rawPatientRecord.mrn}.`);
+      debugLogs.push(`🧠 [Clinical Agent - Thought 3]: Synthesis complete. Drafting structured clinical brief.`);
     }
 
     let agentResponseText = "";

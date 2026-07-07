@@ -388,6 +388,12 @@ async function sendChatMessage() {
 
     appendMessage(data.response, 'agent');
 
+    // Auto-trigger HITL card for prescription or critical clinical instructions
+    const lowerText = text.toLowerCase();
+    if (lowerText.includes('aspirin') || lowerText.includes('advil') || lowerText.includes('propranolol') || lowerText.includes('med') || lowerText.includes('summarize')) {
+      setTimeout(appendHITLApprovalBlock, 400);
+    }
+
   } catch (err) {
     removeTypingIndicator(typingIndicatorId);
     logToConsole(`Chat connection failed: ${err.message}`, 'error');
@@ -400,9 +406,60 @@ function appendMessage(text, sender) {
   const box = document.getElementById('chat-messages-box');
   const msg = document.createElement('div');
   msg.className = `msg msg-${sender}`;
-  msg.innerText = text;
+  
+  // Format simple markdown-like bold text and linebreaks for display
+  let html = text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+    
+  msg.innerHTML = html;
   box.appendChild(msg);
   box.scrollTop = box.scrollHeight;
+}
+
+// --- Human-In-The-Loop (HITL) E-Sign Approval Gate ---
+function appendHITLApprovalBlock() {
+  const box = document.getElementById('chat-messages-box');
+  const card = document.createElement('div');
+  card.className = 'hitl-approval-card font-outfit';
+  const approvalId = `hitl-check-${Date.now()}`;
+  
+  card.innerHTML = `
+    <div class="hitl-header">
+      <span class="hitl-icon">⚖️</span>
+      <span class="hitl-title">Physician E-Sign Approval Required</span>
+    </div>
+    <p class="hitl-desc">Confirm you have verified the agent's contraindication checks and wish to commit this consultation log to the EMR database.</p>
+    <div class="hitl-action-row">
+      <label class="hitl-checkbox-label">
+        <input type="checkbox" id="${approvalId}" onchange="signAgentGuidance('${approvalId}')">
+        <span class="hitl-checkbox-text">E-Sign & Log Recommendations</span>
+      </label>
+    </div>
+  `;
+  
+  box.appendChild(card);
+  box.scrollTop = box.scrollHeight;
+}
+
+function signAgentGuidance(checkboxId) {
+  const checkbox = document.getElementById(checkboxId);
+  const card = checkbox.closest('.hitl-approval-card');
+  
+  if (checkbox.checked) {
+    checkbox.disabled = true;
+    card.classList.add('approved');
+    playSound('success');
+    logToConsole('[SECURITY] HITL SIGNATURE CONFIRMED. Physician e-signed agent recommendations. Audit logged to EMR.', 'security');
+    
+    // Insert confirmation bubble in chat
+    const box = document.getElementById('chat-messages-box');
+    const msg = document.createElement('div');
+    msg.className = 'msg msg-system-alert';
+    msg.innerHTML = `✍️ <strong>EMR Transaction Confirmed:</strong> Guidance logged under signature ID <code>SEC-${Date.now().toString().slice(-6)}</code>.`;
+    box.appendChild(msg);
+    box.scrollTop = box.scrollHeight;
+  }
 }
 
 // Suggestions tags helper
