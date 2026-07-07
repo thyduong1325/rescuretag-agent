@@ -8,6 +8,9 @@ let lastActiveScreen = 'screen-waiting';
 let videoStream = null;
 let scanningActive = false;
 let arVideoStream = null;
+let isMirrored = false;
+let currentFacingMode = 'environment';
+
 
 
 // Native Web Audio Synthesizer chimes
@@ -886,13 +889,14 @@ async function startCameraScanner() {
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { facingMode: "environment", width: { ideal: 300 }, height: { ideal: 300 } } 
+      video: { facingMode: currentFacingMode, width: { ideal: 300 }, height: { ideal: 300 } } 
     });
     
     videoStream = stream;
     if (video) {
       video.srcObject = stream;
       video.style.display = 'block';
+      video.style.transform = isMirrored ? 'scaleX(-1)' : 'none';
     }
     if (placeholder) placeholder.style.display = 'none';
     
@@ -1013,12 +1017,13 @@ async function startARCameraStream() {
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { facingMode: "environment" } 
+      video: { facingMode: currentFacingMode } 
     });
     
     arVideoStream = stream;
     if (video) {
       video.srcObject = stream;
+      video.style.transform = isMirrored ? 'scaleX(-1)' : 'none';
     }
     logToConsole('AR webcam feed active behind HUD.', 'security');
   } catch (err) {
@@ -1036,6 +1041,39 @@ function stopARCameraStream() {
     video.srcObject = null;
   }
   logToConsole('AR webcam feed stopped.', 'system');
+}
+
+// --- Flip & Mirror Camera Actions ---
+function toggleCameraMirror() {
+  isMirrored = !isMirrored;
+  const scannerVideo = document.getElementById('scanner-video');
+  const arVideo = document.getElementById('ar-video');
+  
+  if (isMirrored) {
+    if (scannerVideo) scannerVideo.style.transform = 'scaleX(-1)';
+    if (arVideo) arVideo.style.transform = 'scaleX(-1)';
+    logToConsole('Camera video feed mirrored.', 'system');
+  } else {
+    if (scannerVideo) scannerVideo.style.transform = 'none';
+    if (arVideo) arVideo.style.transform = 'none';
+    logToConsole('Camera video feed unmirrored (standard view).', 'system');
+  }
+}
+
+async function toggleCameraFacingMode() {
+  currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+  logToConsole(`Flipping camera source. Facing Mode: ${currentFacingMode.toUpperCase()}`, 'system');
+  
+  if (scanningActive) {
+    stopCameraScanner();
+    startCameraScanner();
+  }
+  
+  const arScreen = document.getElementById('screen-arcam');
+  if (arScreen && !arScreen.classList.contains('hidden')) {
+    stopARCameraStream();
+    startARCameraStream();
+  }
 }
 
 

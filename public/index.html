@@ -129,6 +129,10 @@
           <!-- SCREEN A: WAITING FOR SCAN -->
           <div class="screen-state" id="screen-waiting">
             <div class="qr-scanner-overlay">
+              <div class="camera-controls">
+                <button class="cam-ctrl-btn" onclick="toggleCameraMirror()" title="Mirror Feed">🪞</button>
+                <button class="cam-ctrl-btn" onclick="toggleCameraFacingMode()" title="Flip Camera">🔄</button>
+              </div>
               <video id="scanner-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; border-radius:14px; position:absolute; top:0; left:0; display:none;"></video>
               <canvas id="scanner-canvas" style="display:none;"></canvas>
               <div class="scanner-line"></div>
@@ -302,6 +306,10 @@
 
 
             <div class="arcam-viewport">
+              <div class="camera-controls">
+                <button class="cam-ctrl-btn" onclick="toggleCameraMirror()" title="Mirror Feed">🪞</button>
+                <button class="cam-ctrl-btn" onclick="toggleCameraFacingMode()" title="Flip Camera">🔄</button>
+              </div>
               <video id="ar-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:0;"></video>
               <div class="arcam-grid"></div>
               <div class="arcam-target-box">
